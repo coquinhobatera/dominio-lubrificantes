@@ -1,5 +1,6 @@
 package br.com.dominiolubrificantes.api.controller;
 
+import br.com.dominiolubrificantes.api.dto.BaixaEstoqueDTO;
 import br.com.dominiolubrificantes.api.dto.MovimentacaoEstoqueDTO;
 import br.com.dominiolubrificantes.api.entity.Produto;
 import br.com.dominiolubrificantes.api.entity.TipoProduto;
@@ -57,6 +58,19 @@ public class ProdutoController {
     @PostMapping("/entrada")
     public ResponseEntity<Produto> darEntrada(@RequestBody @Valid MovimentacaoEstoqueDTO dto) {
         Produto produtoAtualizado = produtoService.darEntrada(dto);
+        return ResponseEntity.ok(produtoAtualizado);
+    }
+
+    // Baixa de estoque (saída / troca de óleo)
+    @PostMapping("/{id}/baixa")
+    public ResponseEntity<Produto> darBaixa(
+            @PathVariable Long id,
+            @RequestBody @Valid BaixaEstoqueDTO dto) {
+        Produto produtoAtualizado = produtoService.darBaixaComObservacao(
+                id, 
+                dto.getQuantidade(), 
+                dto.getObservacao() != null ? dto.getObservacao() : "Baixa de estoque / Troca de óleo"
+        );
         return ResponseEntity.ok(produtoAtualizado);
     }
 }
