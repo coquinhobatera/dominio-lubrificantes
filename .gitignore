@@ -1,0 +1,18 @@
+# Java / Spring Boot
+backend-api/target/
+backend-api/.classpath
+backend-api/.project
+backend-api/.settings/
+
+# Node.js / WhatsApp Service
+whatsapp-service/node_modules/
+whatsapp-service/.env
+
+# Frontend React
+frontend-web/node_modules/
+frontend-web/dist/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.log
