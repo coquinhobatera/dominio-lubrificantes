@@ -1,8 +1,11 @@
 package br.com.dominiolubrificantes.api.service;
 
 import br.com.dominiolubrificantes.api.dto.MovimentacaoEstoqueDTO;
+import br.com.dominiolubrificantes.api.entity.MovimentacaoEstoque;
 import br.com.dominiolubrificantes.api.entity.Produto;
+import br.com.dominiolubrificantes.api.entity.TipoMovimentacao;
 import br.com.dominiolubrificantes.api.exception.ResourceNotFoundException;
+import br.com.dominiolubrificantes.api.repository.MovimentacaoEstoqueRepository;
 import br.com.dominiolubrificantes.api.repository.ProdutoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -19,6 +23,7 @@ import java.util.List;
 public class ProdutoService {
 
     private final ProdutoRepository produtoRepository;
+    private final MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
     private final WhatsappService whatsappService;
 
     // Número do gerente/proprietário para receber alertas de estoque
@@ -26,7 +31,7 @@ public class ProdutoService {
     private String whatsappGerente;
 
     /**
-     * Dá entrada de itens no estoque (reposição de compras / Nota Fiscal)
+     * Dá entrada de itens no estoque (reposição de compras / Nota Fiscal) e gera auditoria
      */
     @Transactional
     public Produto darEntrada(MovimentacaoEstoqueDTO dto) {
@@ -47,6 +52,18 @@ public class ProdutoService {
 
         Produto produtoSalvo = produtoRepository.save(produto);
 
+        // Registra o histórico de ENTRADA
+        MovimentacaoEstoque movimentacao = MovimentacaoEstoque.builder()
+                .produto(produtoSalvo)
+                .tipo(TipoMovimentacao.ENTRADA)
+                .quantidade(dto.getQuantidade())
+                .precoUnitario(dto.getPrecoCustoUnitario() != null ? dto.getPrecoCustoUnitario() : produtoSalvo.getPrecoCusto())
+                .dataMovimentacao(LocalDateTime.now())
+                .observacao(dto.getObservacao() != null ? dto.getObservacao() : "Entrada/Reposição de estoque")
+                .build();
+
+        movimentacaoEstoqueRepository.save(movimentacao);
+
         log.info("Entrada de estoque realizada! Produto: {} | +{} | Novo Saldo: {} | Obs: {}",
                 produto.getNome(), dto.getQuantidade(), novoSaldo, dto.getObservacao());
 
@@ -54,10 +71,18 @@ public class ProdutoService {
     }
 
     /**
-     * Efetua a baixa de itens no estoque (utilizado na troca de óleo ou venda)
+     * Efetua a baixa de itens no estoque (utilizado na troca de óleo ou venda) e gera auditoria
      */
     @Transactional
     public Produto darBaixa(Long produtoId, BigDecimal quantidade) {
+        return darBaixaComObservacao(produtoId, quantidade, "Baixa de estoque / Troca de óleo");
+    }
+
+    /**
+     * Efetua a baixa de itens aceitando observação customizada (ex: placa do veículo)
+     */
+    @Transactional
+    public Produto darBaixaComObservacao(Long produtoId, BigDecimal quantidade, String observacao) {
         Produto produto = buscarPorId(produtoId);
 
         if (quantidade == null || quantidade.compareTo(BigDecimal.ZERO) <= 0) {
@@ -77,6 +102,19 @@ public class ProdutoService {
         produto.setQuantidadeEstoque(novoSaldo);
 
         Produto produtoAtualizado = produtoRepository.save(produto);
+
+        // Registra o histórico de SAÍDA
+        MovimentacaoEstoque movimentacao = MovimentacaoEstoque.builder()
+                .produto(produtoAtualizado)
+                .tipo(TipoMovimentacao.SAIDA)
+                .quantidade(quantidade)
+                .precoUnitario(produtoAtualizado.getPrecoVenda())
+                .dataMovimentacao(LocalDateTime.now())
+                .observacao(observacao)
+                .build();
+
+        movimentacaoEstoqueRepository.save(movimentacao);
+
         log.info("Baixa de estoque realizada! Produto: {} | -{} | Saldo Atual: {}",
                 produto.getNome(), quantidade, novoSaldo);
 
