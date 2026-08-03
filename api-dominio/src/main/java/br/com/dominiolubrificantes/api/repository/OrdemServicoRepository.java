@@ -5,6 +5,7 @@ import br.com.dominiolubrificantes.api.entity.StatusOrdemServico;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -15,4 +16,11 @@ public interface OrdemServicoRepository extends JpaRepository<OrdemServico, Long
 
     // Listar por status (ex: ABERTA, CONCLUIDA)
     List<OrdemServico> findByStatusOrderByDataCriacaoDesc(StatusOrdemServico status);
+
+    // Busca OS por status e intervalo de data de finalização
+    List<OrdemServico> findByStatusAndDataFinalizacaoBetween(
+            StatusOrdemServico status, 
+            LocalDateTime inicio, 
+            LocalDateTime fim
+    );
 }
